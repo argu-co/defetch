@@ -1,9 +1,19 @@
-// can remove if using in browser
+// replace with relevant requires when used in browser!
 if(typeof window === 'undefined') {
-  fetch=require('node-fetch');
-  // FIXME: include Ramda!
-  // FIXME: include RxJs!
+  const fetch = require('node-fetch');
+  // ramda
+  const R = require('ramda');
+  // RxJS
+  const { Observable, Subject, ReplaySubject, from, of, range } = require('rxjs');
+  const { map, filter, switchMap } = require('rxjs/operators');
 }
+
+GL = { session: false,
+       sessiondata: null,
+       vars: {},
+     };
+
+require('./hybriddcall.js');
 
 // test call
 var config = {
@@ -33,7 +43,11 @@ function defetch(input,init,config) {
               "port": node.split(':')[2],
               path
             };
+      // DEBUG: console.log(JSON.stringify(options));
+      hybriddcall({r: node+path, z: true})
+
       // FIXME: this quick and dirty http testcall must be done using hybriddcall!
+      /*
       var req = require('http').get(options, function (response) {
           if (typeof response.error === 'undefined' || response.error) {
             reject(response.data?response.data:'Bad server reply!');
@@ -44,6 +58,8 @@ function defetch(input,init,config) {
       req.on("error", function (err) {
         reject(err);
       });
+      */
+      
     });
 
   }

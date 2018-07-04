@@ -1,4 +1,4 @@
-var U = utils;
+const utils = require('./common');
 
 hybridd = {
   mkHybriddCallStream: function (url) {
