@@ -107,7 +107,7 @@ var HybriddNode = function (host_) {
         try {
           data = JSON.parse(txtdata);
         } catch (error) {
-          console.error(error);
+          if (DEBUG) { console.error(error); }
           if (typeof errorCallback === 'function') {
             errorCallback(error);
           }
@@ -121,6 +121,10 @@ var HybriddNode = function (host_) {
   };
 
   this.zCall = function (data, dataCallback, errorCallback) {
+    if (typeof errorCallback !== 'function') {
+      console.log('A NO ERROR FUNC!!!!');
+    }
+
     /* data = {
        query,
        channel: 'z'
@@ -135,7 +139,7 @@ var HybriddNode = function (host_) {
       try {
         data = JSON.parse(txtdata);
       } catch (error) {
-        console.error(error);
+        if (DEBUG) { console.error(error); }
         if (typeof errorCallback === 'function') {
           errorCallback(error);
         }
@@ -160,7 +164,7 @@ var HybriddNode = function (host_) {
           if (xhr.status === 200) {
             dataCallback(xhr.responseText);
           } else {
-            console.error(xhr.responseText);
+            if (DEBUG) { console.error(xhr.responseText); }
             if (typeof errorCallback === 'function') {
               errorCallback(xhr.responseText);
             }
@@ -172,35 +176,58 @@ var HybriddNode = function (host_) {
     };
 
     var httpSocket = (host, query, dataCallback, errorCallback) => {
+      if (typeof errorCallback !== 'function' || typeof dataCallback !== 'function') {
+        console.log('B NO ERROR FUNC!!!!');
+      }
+
       data.connector.http.get(host + query, (res) => {
-        const { statusCode } = res;
         // const contentType = res.headers['content-type'];
 
-        let error;
-        if (statusCode !== 200) {
-          error = ('Request error: Status Code: ' + statusCode);
-        }
-        if (error) {
-          console.error(error);
+        if (res.statusCode < 200 || res.statusCode > 299) {
+          var error = ('Request error: Status Code: ' + res.statusCode);
+
+          if (DEBUG) { console.error(error); }
+          res.resume(); // consume response data to free up memory
           if (typeof errorCallback === 'function') {
             errorCallback(error); // TODO error.message
           }
-          // consume response data to free up memory
-          res.resume();
           return;
         }
 
         res.setEncoding('utf8');
-        let rawData = '';
-        res.on('data', (chunk) => { rawData += chunk; });
+        var rawData = [];
+        res.on('data', (chunk) => { rawData.push(chunk); });
+        res.on('timeout', () => {
+          res.resume();
+          if (DEBUG) { console.error('Request timed out.'); }
+
+          if (typeof errorCallback === 'function') {
+            errorCallback('Request timed out.');
+          }
+        });
+        res.on('error', (e) => {
+          res.resume();
+          if (DEBUG) { console.error(`Got error: ${e.message}`); }
+
+          if (typeof errorCallback === 'function') {
+            errorCallback(`Got error: ${e.message}`);
+          }
+        });
         res.on('end', () => {
-          dataCallback(rawData);
+          res.resume();
+          dataCallback(rawData.join(''));
         });
       }).on('error', (e) => {
-        console.error(`Got error: ${e.message}`);
+        if (DEBUG) { console.error(`Got error: ${e.message}`); }
 
         if (typeof errorCallback === 'function') {
           errorCallback(`Got error: ${e.message}`);
+        }
+      }).setTimeout(10000, () => { // TODO parametrize
+        // handle timeout here
+        if (DEBUG) { console.error('Request timed out.'); }
+        if (typeof errorCallback === 'function') {
+          errorCallback('Request timed out');
         }
       });
     };
@@ -225,55 +252,56 @@ var HybriddNode = function (host_) {
     if (data.connector.hasOwnProperty('custom')) { connector = data.connector.custom; }
 
     if (typeof connector === 'undefined') {
-      console.error('Error: No http request connector method available.');
+      if (DEBUG) { console.error('Error: No http request connector method available.'); }
       if (typeof errorCallback === 'function') {
         errorCallback('Error: No http request connector method available.');
       }
       return;
     }
-
+    var query = data.query;
     connector(host, data.query, (response) => {
       var data;
       try {
         data = JSON.parse(response);
       } catch (error) {
-        console.error(error);
+        if (DEBUG) { console.error(error); }
         if (typeof errorCallback === 'function') {
           errorCallback(error);
         }
         return;
       }
       if (data.hasOwnProperty('id') && data.id === 'id') {
-        var interval = setInterval(() => {
+        var followUp = () => {
           connector(host, '/proc/' + data.data, (response) => {
-            var data;
+            var parsedResponse;
             try {
-              data = JSON.parse(response);
+              parsedResponse = JSON.parse(response);
             } catch (error) {
-              console.error(error);
-              clearInterval(interval);
+              if (DEBUG) { console.error(error); }
               if (typeof errorCallback === 'function') {
                 errorCallback(error);
               }
               return;
             }
-            if (data.hasOwnProperty('error') && data.error !== 0) {
-              console.error(data);
-              clearInterval(interval);
+            if (parsedResponse.hasOwnProperty('error') && parsedResponse.error !== 0) {
+              if (DEBUG) { console.error(parsedResponse); }
               if (typeof errorCallback === 'function') {
-                errorCallback(data.info);
+                errorCallback(parsedResponse.info);
               }
-            } else if (data.stopped !== null) {
-              clearInterval(interval);
-              dataCallback(meta ? data : data.data);
+            } else if (parsedResponse.stopped !== null) {
+              dataCallback(meta ? parsedResponse : parsedResponse.data);
+            } else {
+              setTimeout(followUp, 500); // TODO parametrize, add timeout
             }
-          });
-        }, 500); // TODO parametrize, add timeout
+          },
+          errorCallback);
+        };
+        followUp();
 
         // TODO errorCallback gebruiken bij timeout?
       } else if (dataCallback) {
         if (data.hasOwnProperty('error') && data.error !== 0) {
-          console.error(data);
+          if (DEBUG) { console.error(data); }
           if (typeof errorCallback === 'function') {
             errorCallback(response);
           }

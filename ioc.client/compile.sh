@@ -5,7 +5,8 @@ export PATH=$WHEREAMI/../node/bin:"$PATH"
 NODEINST=`which node`
 
 # Generate API documentation
-jsdoc interface.js
+mkdir -p ./docs
+jsdoc interface.js -t jsdoc-template -d ./docs
 
 # Generate libary that can be imported into Node projects
 ../node_modules/webpack/bin/webpack.js --config webpack.config.ioc.nodejs.client.js
