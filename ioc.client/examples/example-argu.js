@@ -3,35 +3,48 @@ nacl_factory = require('../../crypto/nacl.js');
 var IoC = require('../ioc.nodejs.client.js');
 var ioc = new IoC.Interface({http: require('http')});
 
-// TEMPORARY (REPLACE BY CMDLINE ARGS)
-var base = 'eth';
-var symbol = 'eth';
-var amount = 1;
+var base = 'waves';
+var symbol = 'waves.vote';
 
-ioc.sequential([
-    'init',
-    {username: '3MNY6P42EYFPIVHW', password: '6AAOR4FMKF6VB5E2RE4ORUW7XPUUTSO7RNCZ2SOASWO47F6Y'}, 'login',
-    {host: 'http://wallet-uat.internetofcoins.org/api/'}, 'addHost',
-    {symbol: symbol}, 'addAsset',
-    {
-      details: {data: {query: '/asset/' + symbol + '/details'}, step: 'call'},
-      address: {data: {symbol: symbol}, step: 'getAddress'}
-    }, 'parallel',
-    (result) => {
-      console.log("\n"+'Details: '+JSON.stringify(result.details)+"\n");
-      console.log('Source address: '+result.address+"\n");
-      return {
-        details: {data: result.details, step: 'id'},
-        address: {data: result.address, step: 'id'},
-        unspent: {data: {query: '/asset/' + symbol + '/unspent/' + result.address + '/' + (Number(amount) + Number(result.details.fee)) + '/' + result.address }, step: 'call'} //   TODO add public key
-      }
-    }, 'parallel',
-    (result) => {
-      return {
-        tx: {data: {symbol: symbol, target: result.address, unspent: result.unspent, amount: Number(amount), fee: result.details.fee}, step: 'signTransaction'}
-      }
-    }, 'parallel',
-  ]
-  , (data) => { console.log('Signed transaction: '+JSON.stringify(data.tx)+"\n"); }
-  , (error) => { console.error(error); }
+openConnection('3MNY6P42EYFPIVHW', '6AAOR4FMKF6VB5E2RE4ORUW7XPUUTSO7RNCZ2SOASWO47F6Y', 'http://wallet-uat.internetofcoins.org/api/',
+ () => {} // WIP
 );
+
+function openConnection(username, password, hostname, successcb, errorcb) {
+  ioc.sequential([
+      'init',
+      {username: username, password: password}, 'login',
+      {host: hostname}, 'addHost',
+      {symbol: 'waves.vote'}, 'addAsset',
+    ]
+    , (data) => { successcb(data); }
+    , (error) => { errorcb(error); }
+  );
+}
+
+function createTarget(successcb, errorcb) {
+  var ioctmp = new IoC.Interface({http: require('http')});
+  ioc.sequential([
+    'init',
+    {},'createAccount'
+    {host: 'http://wallet-uat.internetofcoins.org/api/'}, 'addHost',
+    data => {return {username:data.userid, password:data.passwd}}, 'login',
+    (result) => {
+      return {  address: {data: result.address, step: 'id'} };
+    }
+  ]
+    , (data) => { successcb(data); }
+    , (error) => { errorcb(error); }
+  );
+}
+
+function sendVote(target, successcb, errorcb) {
+  var amount = 1;
+  var symbol = 'waves.vote';
+  ioc.sequential([
+      {symbol: symbol, amount: Number(amount), target: target }, 'rawTransaction'
+  ]
+    , (data) => { successcb(data); }
+    , (error) => { errorcb(error); }
+  );
+}
