@@ -10,14 +10,15 @@ openConnection('3MNY6P42EYFPIVHW', '6AAOR4FMKF6VB5E2RE4ORUW7XPUUTSO7RNCZ2SOASWO4
  () => {} // WIP
 );
 
-function openConnection(username, password, hostname, successcb, errorcb) {
+// data -> { username:username, password:password, hostname:hostname, successcb:successcb }
+function openConnection(data, successcb, errorcb) {
   ioc.sequential([
       'init',
-      {username: username, password: password}, 'login',
-      {host: hostname}, 'addHost',
+      {username: data.username, password: data.password}, 'login',
+      {host: data.hostname}, 'addHost',
       {symbol: 'waves.vote'}, 'addAsset',
     ]
-    , (data) => { successcb(data); }
+    , (result) => { successcb(result); }
     , (error) => { errorcb(error); }
   );
 }
