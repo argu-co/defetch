@@ -54,5 +54,5 @@ hybridd.sequential([
 ]
   , (data) => { console.log(JSON.stringify(data)); }
                , (error) => { console.error(error); }
-               , (progress) => { console.log(progress+'%'); }
+                   , (progress) => { console.log(Math.round(Number(progress)*100)+'%'); }
                   );
