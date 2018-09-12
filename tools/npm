@@ -1,9 +1,0 @@
-#!/bin/sh
-OLDPATH=$PATH
-WHEREAMI=`pwd`
-export PATH=$WHEREAMI/node/bin:"$PATH"
-NPMINST=`which npm`
-
-node $WHEREAMI/node_modules/npm/bin/npm-cli.js $@
-
-export PATH=$OLDPATH
